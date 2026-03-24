@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="FOTON">
+  <title>FOTON · Instagram Style Camera</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Poppins', sans-serif;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Contenedor principal */
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+
+    /* Cámara fullscreen */
+    .camera-view {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(1);
+    }
+
+    /* Capa de filtro overlay para efecto visual */
+    .filter-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      mix-blend-mode: normal;
+      transition: all 0.1s ease;
+    }
+
+    /* Header con contadores */
+    .header-stats {
+      position: absolute;
+      top: 50px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .stat-badge {
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      border-radius: 30px;
+      padding: 8px 16px;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .stat-badge i {
+      font-size: 0.9rem;
+    }
+
+    .stat-badge span {
+      color: #ffd966;
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-left: 4px;
+    }
+
+    /* Nombre del filtro actual */
+    .filter-name {
+      position: absolute;
+      bottom: 140px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(20px);
+      padding: 8px 20px;
+      border-radius: 40px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
+      z-index: 20;
+      white-space: nowrap;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+
+    /* Botón de captura estilo Instagram */
+    .capture-btn {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid rgba(255,255,255,0.5);
+      cursor: pointer;
+      z-index: 30;
+      transition: all 0.1s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .capture-btn:active {
+      transform: translateX(-50%) scale(0.92);
+    }
+
+    .capture-btn::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      right: 4px;
+      bottom: 4px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffb347, #ff8c00);
+    }
+
+    /* Botón de cambiar cámara */
+    .switch-cam {
+      position: absolute;
+      bottom: 40px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .switch-cam:active {
+      transform: scale(0.92);
+    }
+
+    /* Botón de galería */
+    .gallery-btn {
+      position: absolute;
+      bottom: 40px;
+      left: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      border: none;
+      color: white;
+      font-size: 1.3rem;
+      cursor: pointer;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Galería deslizable (carrete) */
+    .gallery-panel {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(20px);
+      border-radius: 30px 30px 0 0;
+      padding: 15px;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+      z-index: 40;
+      max-height: 40%;
+      overflow-y: auto;
+    }
+
+    .gallery-panel.open {
+      transform: translateY(0);
+    }
+
+    .gallery-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .gallery-grid {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      scrollbar-width: thin;
+    }
+
+    .gallery-item {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: #333;
+      cursor: pointer;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-badge {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 12px;
+      padding: 2px 5px;
+      font-size: 0.5rem;
+      color: white;
+    }
+
+    .gallery-badge.sent { background: #4caf50; }
+    .gallery-badge.sending { background: #ff9800; }
+
+    .close-gallery {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+
+    /* Toast mensajes */
+    .toast {
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      z-index: 100;
+      animation: fadeOut 2s forwards;
+      white-space: nowrap;
+    }
+
+    @keyframes fadeOut {
+      0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      70% { opacity: 1; }
+      100% { opacity: 0; transform: translateX(-50%) translateY(10px); visibility: hidden; }
+    }
+
+    /* Indicador de swipe */
+    .swipe-hint {
+      position: absolute;
+      bottom: 180px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      padding: 5px 12px;
+      border-radius: 20px;
+      color: white;
+      font-size: 0.65rem;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div class="app">
+  <div class="camera-view">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="filterOverlay" class="filter-overlay"></div>
+  </div>
+
+  <!-- Header stats -->
+  <div class="header-stats">
+    <div class="stat-badge"><i class="fas fa-cloud-upload-alt"></i> Drive: <span id="totalEnviadas">0</span></div>
+    <div class="stat-badge"><i class="fas fa-images"></i> Carrete: <span id="totalFotos">0</span></div>
+  </div>
+
+  <!-- Nombre filtro actual -->
+  <div id="filterName" class="filter-name">🌸 NATURAL</div>
+  <div class="swipe-hint"><i class="fas fa-hand-peace"></i> Desliza sobre la imagen → cambia filtro</div>
+
+  <!-- Botón captura -->
+  <div class="capture-btn" id="captureBtn"></div>
+  <button class="switch-cam" id="switchCamBtn"><i class="fas fa-sync-alt"></i></button>
+  <button class="gallery-btn" id="galleryBtn"><i class="fas fa-th-large"></i></button>
+
+  <!-- Panel de galería -->
+  <div id="galleryPanel" class="gallery-panel">
+    <div class="gallery-header">
+      <span><i class="fas fa-film"></i> Tus recuerdos</span>
+      <button class="close-gallery" id="closeGalleryBtn">Cerrar</button>
+    </div>
+    <div id="galleryGrid" class="gallery-grid">
+      <div style="color:#888; text-align:center; width:100%;">Toma fotos para verlas aquí</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========== CONFIGURACIÓN ==========
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx30ZG3jDS-4CoszM4SORbwB9pTwgrfNLbo0Jk7xLbk_Y7wopNTzS6Uw7C41UC04MdN/exec";
+  
+  // FILTROS estilo Instagram (efectos visuales en tiempo real)
+  const filters = [
+    { name: "NATURAL", style: "none", icon: "🌸", css: "" },
+    { name: "CLARENDON", style: "clarendon", icon: "☀️", css: "brightness(110%) contrast(115%) saturate(125%)" },
+    { name: "GINGHAM", style: "gingham", icon: "🎀", css: "contrast(105%) brightness(102%) sepia(10%)" },
+    { name: "MOON", style: "moon", icon: "🌙", css: "grayscale(40%) contrast(120%) brightness(105%)" },
+    { name: "LARK", style: "lark", icon: "🌿", css: "brightness(108%) saturate(90%) hue-rotate(-5deg)" },
+    { name: "REYES", style: "reyes", icon: "🌅", css: "sepia(30%) contrast(110%) brightness(95%)" },
+    { name: "JUNO", style: "juno", icon: "🌸", css: "saturate(130%) hue-rotate(350deg) brightness(105%)" },
+    { name: "SIERRA", style: "sierra", icon: "🏔️", css: "contrast(115%) brightness(98%) saturate(90%)" },
+    { name: "VALENCIA", style: "valencia", icon: "🍊", css: "sepia(15%) contrast(110%) brightness(105%)" },
+    { name: "WILLOW", style: "willow", icon: "🌾", css: "grayscale(60%) contrast(95%) brightness(102%)" },
+    { name: "X-PRO II", style: "xpro", icon: "🎞️", css: "sepia(50%) contrast(125%) brightness(90%)" },
+    { name: "HUDSON", style: "hudson", icon: "❄️", css: "brightness(105%) contrast(115%) hue-rotate(10deg)" }
+  ];
+  
+  let currentFilterIndex = 0;
+  let fotos = [];
+  let nextId = 1;
+  let totalEnviadas = 0;
+  let enviandoActivos = 0;
+  let currentStream = null;
+  let currentFacing = "user";
+  
+  // Elementos
+  const video = document.getElementById('video');
+  const filterOverlay = document.getElementById('filterOverlay');
+  const filterNameSpan = document.getElementById('filterName');
+  const captureBtn = document.getElementById('captureBtn');
+  const switchCamBtn = document.getElementById('switchCamBtn');
+  const galleryBtn = document.getElementById('galleryBtn');
+  const galleryPanel = document.getElementById('galleryPanel');
+  const closeGalleryBtn = document.getElementById('closeGalleryBtn');
+  const galleryGrid = document.getElementById('galleryGrid');
+  const totalEnviadasSpan = document.getElementById('totalEnviadas');
+  const totalFotosSpan = document.getElementById('totalFotos');
+  
+  // ========== APLICAR FILTRO EN VIVO ==========
+  function applyFilterToVideo(filter) {
+    if (filter.css === "") {
+      video.style.filter = "none";
+      filterOverlay.style.background = "transparent";
+    } else {
+      video.style.filter = filter.css;
+      // Overlay sutil para algunos filtros
+      if (filter.style === "clarendon") filterOverlay.style.background = "rgba(255,200,100,0.05)";
+      else if (filter.style === "moon") filterOverlay.style.background = "rgba(100,100,150,0.1)";
+      else if (filter.style === "reyes") filterOverlay.style.background = "rgba(210,180,140,0.08)";
+      else filterOverlay.style.background = "transparent";
+    }
+    filterNameSpan.innerHTML = `${filter.icon} ${filter.name}`;
+  }
+  
+  function nextFilter() {
+    currentFilterIndex = (currentFilterIndex + 1) % filters.length;
+    applyFilterToVideo(filters[currentFilterIndex]);
+    showToast(`${filters[currentFilterIndex].icon} ${filters[currentFilterIndex].name}`);
+  }
+  
+  function prevFilter() {
+    currentFilterIndex = (currentFilterIndex - 1 + filters.length) % filters.length;
+    applyFilterToVideo(filters[currentFilterIndex]);
+    showToast(`${filters[currentFilterIndex].icon} ${filters[currentFilterIndex].name}`);
+  }
+  
+  // ========== CÁMARA ==========
+  async function initCamera(facingMode) {
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+    }
+    try {
+      const constraints = {
+        video: { facingMode: { exact: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      currentStream = stream;
+      video.srcObject = stream;
+      await video.play();
+    } catch (err) {
+      try {
+        const constraints = { video: { facingMode: facingMode } };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        currentStream = stream;
+        video.srcObject = stream;
+        await video.play();
+      } catch (e) {
+        showToast("⚠️ Permiso de cámara necesario", true);
+      }
+    }
+  }
+  
+  // ========== CAPTURAR CON FILTRO ==========
+  async function capturePhoto() {
+    if (!video.videoWidth) {
+      showToast("📹 Espera que la cámara cargue", true);
+      return;
+    }
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Dibujar frame
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Aplicar el filtro actual al canvas (para que la foto guardada tenga el filtro)
+    applyCanvasFilter(ctx, canvas.width, canvas.height, filters[currentFilterIndex]);
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const filterName = filters[currentFilterIndex].name;
+    const filterStyle = filters[currentFilterIndex].style;
+    
+    const nuevaFoto = {
+      id: nextId++,
+      data: dataUrl,
+      status: 'pending',
+      filterName: filterName,
+      filterStyle: filterStyle,
+      timestamp: new Date().toISOString()
+    };
+    
+    fotos.unshift(nuevaFoto);
+    saveToLocal();
+    renderGallery();
+    updateStats();
+    showToast(`📸 ${filterName} · subiendo a Drive...`);
+    
+    // Enviar automáticamente
+    uploadPhoto(nuevaFoto);
+    
+    // Efecto visual
+    flashEffect();
+  }
+  
+  function applyCanvasFilter(ctx, width, height, filter) {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    
+    switch(filter.style) {
+      case 'clarendon':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 1.1);
+          data[i+1] = Math.min(255, data[i+1] * 1.05);
+          data[i+2] = Math.min(255, data[i+2] * 0.95);
+        }
+        break;
+      case 'gingham':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 1.02 + 10);
+          data[i+1] = Math.min(255, data[i+1] * 0.98 + 5);
+          data[i+2] = Math.min(255, data[i+2] * 0.96 + 8);
+        }
+        break;
+      case 'moon':
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = data[i] * 0.3 + data[i+1] * 0.59 + data[i+2] * 0.11;
+          data[i] = data[i] * 0.6 + gray * 0.4;
+          data[i+1] = data[i+1] * 0.6 + gray * 0.4;
+          data[i+2] = data[i+2] * 0.6 + gray * 0.4;
+        }
+        break;
+      case 'lark':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 1.08);
+          data[i+1] = Math.min(255, data[i+1] * 1.02);
+          data[i+2] = Math.min(255, data[i+2] * 0.92);
+        }
+        break;
+      case 'reyes':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 0.95 + 30);
+          data[i+1] = Math.min(255, data[i+1] * 0.85 + 20);
+          data[i+2] = Math.min(255, data[i+2] * 0.75 + 10);
+        }
+        break;
+      case 'juno':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 1.12);
+          data[i+1] = Math.min(255, data[i+1] * 0.92);
+          data[i+2] = Math.min(255, data[i+2] * 0.88);
+        }
+        break;
+      case 'valencia':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 1.05 + 15);
+          data[i+1] = Math.min(255, data[i+1] * 0.98 + 8);
+          data[i+2] = Math.min(255, data[i+2] * 0.92);
+        }
+        break;
+      case 'willow':
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = data[i] * 0.3 + data[i+1] * 0.59 + data[i+2] * 0.11;
+          data[i] = gray * 0.7 + data[i] * 0.3;
+          data[i+1] = gray * 0.7 + data[i+1] * 0.3;
+          data[i+2] = gray * 0.7 + data[i+2] * 0.3;
+        }
+        break;
+      case 'xpro':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 1.15);
+          data[i+1] = Math.min(255, data[i+1] * 0.85);
+          data[i+2] = Math.min(255, data[i+2] * 0.8);
+        }
+        break;
+      case 'hudson':
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, data[i] * 0.98 + 20);
+          data[i+1] = Math.min(255, data[i+1] * 0.95 + 15);
+          data[i+2] = Math.min(255, data[i+2] * 1.02);
+        }
+        break;
+      default: break;
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+  
+  // ========== SUBIDA A GOOGLE DRIVE ==========
+  async function uploadPhoto(foto) {
+    if (foto.status === 'sent' || foto.status === 'sending') return;
+    foto.status = 'sending';
+    enviandoActivos++;
+    renderGallery();
+    updateStats();
+    
+    try {
+      const formData = new URLSearchParams();
+      formData.append('image', foto.data);
+      formData.append('timestamp', foto.timestamp);
+      formData.append('filter', foto.filterName);
+      
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+      const result = await response.text();
+      
+      if (result.startsWith('OK') || result.includes('OK')) {
+        foto.status = 'sent';
+        totalEnviadas++;
+        saveToLocal();
+        renderGallery();
+        updateStats();
+        showToast(`✅ Subida a Drive! Total: ${totalEnviadas}`);
+      } else {
+        throw new Error(result);
+      }
+    } catch (error) {
+      foto.status = 'error';
+      renderGallery();
+      updateStats();
+      setTimeout(() => {
+        const fotoActual = fotos.find(f => f.id === foto.id);
+        if (fotoActual && fotoActual.status === 'error') uploadPhoto(fotoActual);
+      }, 5000);
+    } finally {
+      enviandoActivos--;
+    }
+  }
+  
+  // ========== GALERÍA Y PERSISTENCIA ==========
+  function renderGallery() {
+    if (fotos.length === 0) {
+      galleryGrid.innerHTML = '<div style="color:#888; text-align:center; width:100%;">📸 Toma fotos para verlas aquí</div>';
+      return;
+    }
+    galleryGrid.innerHTML = fotos.map(foto => `
+      <div class="gallery-item" data-id="${foto.id}">
+        <img src="${foto.data}" alt="foto">
+        <div class="gallery-badge ${foto.status}">
+          ${foto.status === 'sending' ? '⏳' : (foto.status === 'sent' ? '✓' : '❌')}
+        </div>
+      </div>
+    `).join('');
+    
+    // Click para descargar foto
+    document.querySelectorAll('.gallery-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = parseInt(item.dataset.id);
+        const foto = fotos.find(f => f.id === id);
+        if (foto) {
+          const link = document.createElement('a');
+          link.download = `foton_${foto.filterName}_${Date.now()}.jpg`;
+          link.href = foto.data;
+          link.click();
+          showToast(`📸 Descargando ${foto.filterName}`);
+        }
+      });
+    });
+  }
+  
+  function saveToLocal() {
+    localStorage.setItem('fotosFotonIG', JSON.stringify(fotos));
+    localStorage.setItem('totalEnviadasFotonIG', totalEnviadas);
+    localStorage.setItem('nextIdFotonIG', nextId);
+  }
+  
+  function loadFromLocal() {
+    const saved = localStorage.getItem('fotosFotonIG');
+    if (saved) {
+      fotos = JSON.parse(saved);
+      nextId = localStorage.getItem('nextIdFotonIG') ? parseInt(localStorage.getItem('nextIdFotonIG')) : (fotos.length > 0 ? Math.max(...fotos.map(f => f.id)) + 1 : 1);
+    }
+    const savedTotal = localStorage.getItem('totalEnviadasFotonIG');
+    if (savedTotal) totalEnviadas = parseInt(savedTotal);
+    renderGallery();
+    updateStats();
+    fotos.forEach(foto => {
+      if (foto.status === 'pending' || foto.status === 'error') uploadPhoto(foto);
+    });
+  }
+  
+  function updateStats() {
+    totalEnviadasSpan.textContent = totalEnviadas;
+    totalFotosSpan.textContent = fotos.length;
+  }
+  
+  // ========== UI ==========
+  function showToast(msg, isError = false) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = msg;
+    if (isError) toast.style.background = 'rgba(200,60,50,0.9)';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+  
+  function flashEffect() {
+    const flash = document.createElement('div');
+    flash.style.position = 'fixed';
+    flash.style.top = '0';
+    flash.style.left = '0';
+    flash.style.width = '100%';
+    flash.style.height = '100%';
+    flash.style.background = 'white';
+    flash.style.pointerEvents = 'none';
+    flash.style.zIndex = '9999';
+    flash.style.animation = 'flashAnim 0.15s ease-out';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 150);
+    const style = document.createElement('style');
+    style.textContent = `@keyframes flashAnim { 0% { opacity: 0.8; } 100% { opacity: 0; } }`;
+    document.head.appendChild(style);
+    setTimeout(() => style.remove(), 200);
+  }
+  
+  // ========== EVENTOS SWIPE ==========
+  let touchStartX = 0;
+  let touchEndX = 0;
+  
+  video.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  });
+  
+  video.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    const diff = touchEndX - touchStartX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) {
+        prevFilter();
+      } else {
+        nextFilter();
+      }
+    }
+  });
+  
+  // También soporte mouse (para escritorio)
+  let mouseStartX = 0;
+  video.addEventListener('mousedown', (e) => {
+    mouseStartX = e.screenX;
+    video.style.cursor = 'grabbing';
+  });
+  video.addEventListener('mouseup', (e) => {
+    const diff = e.screenX - mouseStartX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) prevFilter();
+      else nextFilter();
+    }
+    video.style.cursor = 'grab';
+  });
+  video.style.cursor = 'grab';
+  
+  // ========== BOTONES ==========
+  captureBtn.addEventListener('click', capturePhoto);
+  switchCamBtn.addEventListener('click', () => {
+    currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+    initCamera(currentFacing);
+    showToast(currentFacing === 'user' ? '🤳 Selfie' : '📷 Trasera');
+  });
+  
+  galleryBtn.addEventListener('click', () => {
+    galleryPanel.classList.add('open');
+  });
+  closeGalleryBtn.addEventListener('click', () => {
+    galleryPanel.classList.remove('open');
+  });
+  
+  // ========== INICIAR ==========
+  initCamera('user');
+  loadFromLocal();
+  
+  // Aplicar filtro inicial
+  applyFilterToVideo(filters[0]);
+  
+  // Cerrar galería al hacer tap fuera
+  document.addEventListener('click', (e) => {
+    if (!galleryPanel.contains(e.target) && !galleryBtn.contains(e.target)) {
+      galleryPanel.classList.remove('open');
+    }
+  });
+</script>
+</body>
+</html>
